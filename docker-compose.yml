@@ -1,0 +1,44 @@
+services:
+
+  nginx:
+    image: nginx:1.23.1-alpine
+    restart: unless-stopped
+    depends_on:
+      - php
+    ports:
+      - "8080:${NGINX_PORT:-8080}"
+    environment:
+      - NGINX_PORT=${NGINX_PORT:-8080}
+      - NGINX_SERVER_NAME=${NGINX_SERVER_NAME:-localhost}
+      - NGINX_DOC_ROOT=${NGINX_DOC_ROOT:-/var/www/html/public}
+      - NGINX_DIRECTORY_INDEX=${NGINX_DIRECTORY_INDEX:-index.php}
+      - NGINX_FASTCGI_DIRECTORY_INDEX=${NGINX_FASTCGI_DIRECTORY_INDEX:-index.php}
+      - NGINX_FASTCGI_HOSTNAME=${NGINX_FASTCGI_HOSTNAME:-php}
+      - NGINX_FASTCGI_PORT=${NGINX_FASTCGI_PORT:-9000}
+    volumes:
+      - .:/var/www/html
+      - ./docker/nginx/templates:/etc/nginx/templates
+
+  php:
+    build:
+      context: ./
+      dockerfile: docker/php/Dockerfile
+      args:
+        ENV: development
+    restart: unless-stopped
+    volumes:
+      - .:/var/www/html
+      - ./docker/php/config/ini/conf.d/xdebug.ini:/usr/local/etc/php/conf.d/docker-php-ext-xdebug.ini
+      - ./docker/php/config/ini/conf.d/error_reporting.ini:/usr/local/etc/php/conf.d/error_reporting.ini
+
+  database:
+    image: postgres:14.5-alpine3.16
+    restart: unless-stopped
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_DB: "${DB_NAME}"
+      POSTGRES_USER: "${DB_USERNAME}"
+      POSTGRES_PASSWORD: "${DB_PASSWORD}"
+    volumes:
+      - ./docker/database/init.db.sql:/docker-entrypoint-initdb.d/init.db.sql
